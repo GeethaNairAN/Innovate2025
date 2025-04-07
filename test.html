@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChexMate - Know and Protect Your Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        /* Header Styles */
+        header {
+            background-color: #0078d4;
+            color: white;
+            padding: 20px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        /* Navigation Styles */
+        nav {
+            background-color: #f0f0f0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tab-menu {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            list-style: none;
+            display: flex;
+        }
+        
+        .tab-menu li {
+            padding: 15px 25px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .tab-menu li.active {
+            background-color: #e0e0e0;
+            font-weight: bold;
+        }
+        
+        .tab-menu li:hover {
+            background-color: #e0e0e0;
+        }
+        
+        /* Main Content Styles */
+        main {
+            flex-grow: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+            width: 100%;
+        }
+        
+        .content-section {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        
+        .content-section.active {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .content-left {
+            flex: 2;
+            padding-right: 30px;
+        }
+        
+        .content-right {
+            flex: 1;
+            padding: 20px;
+            background-color: #e6f2ff;
+            border-radius: 5px;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        h2 {
+            margin: 25px 0 15px;
+            color: #444;
+        }
+        
+        p {
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        
+        /* Chat Widget Styles */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: height 0.3s;
+        }
+        
+        .chat-widget.minimized {
+            height: 50px;
+        }
+        
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background-color: #0078d4;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .chat-body {
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+            background-color: white;
+        }
+        
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+        }
+        
+        .chat-actions {
+            display: flex;
+            padding: 8px 10px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #f7f7f7;
+        }
+
+        .action-button {
+            display: flex;
+            align-items: center;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .action-button:hover {
+            background-color: #e0e0e0;
+        }
+
+        .action-button svg {
+            margin-right: 6px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background-color: #e6f2ff;
+            margin-left: auto;
+        }
+        
+        .assistant-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .chat-input textarea {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 8px;
+            resize: none;
+            height: 40px;
+            margin-right: 10px;
+        }
+        
+        .chat-input button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0 15px;
+            cursor: pointer;
+        }
+        
+        .file-upload {
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .file-upload input {
+            margin-right: 10px;
+            max-width: 200px;
+        }
+        
+        .control-buttons button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .minimize-button {
+            font-size: 18px;
+        }
+        
+        /* Footer Styles */
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Logo -->
+        <header>
+            <div class="header-content">
+                <div class="logo">ChexMate - Know and Protect Your Data</div>
+            </div>
+        </header>
+        
+        <!-- Navigation Menu -->
+        <nav>
+            <ul class="tab-menu">
+                <li class="active" data-tab="security-freeze">Security Freeze</li>
+                <li data-tab="identity-theft">Identity Theft</li>
+                <li data-tab="disclosure-report">Disclosure Report</li>
+            </ul>
+        </nav>
+        
+        <!-- Main Content Area -->
+        <main>
+            <!-- Security Freeze Section -->
+            <section id="security-freeze" class="content-section active">
+                <div class="content-left">
+                    <h1>Security Freeze</h1>
+                    <p>A security freeze prohibits a consumer reporting agency from releasing any information in your consumer file without your expressed authorization. All consumers who reside in the United States have the right to place a security freeze on their file..</p>
+                    
+                    <h2>How Security Freeze Works</h2>
+                    <p>When you place a security freeze on your credit file, third parties, such as lenders or other companies, will not be able to access your credit report unless you temporarily lift the freeze. This prevents them from extending credit, which helps prevent identity thieves from opening accounts in your name.</p>
+                    
+                    <h2>Benefits of Security Freeze</h2>
+                    <p>A security freeze provides strong protection against certain types of identity theft. If you've been a victim of identity theft or believe your personal information has been compromised in a data breach, a security freeze is an important step to protect your credit.</p>
+                    
+                    <h2>How to Place a Security Freeze with us</h2>
+                    <p>If you are representing a Protected Consumer and have questions about a security freeze, you may contact ChexSystems® Security Freeze Department using the information below. To place, lift or remove a security freeze for a Protected Consumer, please submit your request in writing and provide sufficient proof of authority and sufficient proof of identity. </p>
+                    
+                    <h2>Important Considerations</h2>
+                    <p>While a security freeze is one of the most effective ways to protect against identity theft, it may cause delays, interference, or prohibit the timely approval of any subsequent request or application you make for a new loan, credit, mortgage, or any other account involving the extension of credit.</p>
+                </div>
+                <div class="content-right">
+                    <h2>Quick Links</h2>
+                    <p>• Place Security Freeze with ChexMate</p>
+                    <p>• Manage your existing Security Freeze</p>
+                    <p>• Request a Pin Replacement</p>
+                    <h2>Contact Information</h2>
+                    <p><strong>Support:</strong> 1-800-555-0123</p>
+                    <p><strong>Email:</strong> support@chexmate.example</p>
+                </div>
+            </section>
+            
+            <!-- Identity Theft Section -->
+            <section id="identity-theft" class="content-section">
+                <div class="content-left">
+                    <h1>Identity Theft</h1>
+                    <p>Identity theft occurs when someone steals your personal information and uses it without your permission. It is a serious crime that can disrupt your finances, credit history, and reputation.</p>
+                    
+                    <h2>Warning Signs</h2>
+                    <p>Early detection is key to minimizing damage from identity theft. Look out for unexplained withdrawals from your bank accounts, missing bills or other mail, calls from debt collectors about debts that aren't yours, and unfamiliar accounts or charges on your credit report.</p>
+                    
+                    <h2>Steps to Take If You're a Victim</h2>
+                    <p>If you believe you've been a victim of identity theft, it's important to act quickly. Contact the fraud departments of the three major credit bureaus, place a fraud alert on your credit reports, and file a report with your local police department.</p>
+                </div>
+                <div class="content-right">
+                    <h2>Quick Tips</h2>
+                    <p>• Monitor your credit reports regularly</p>
+                    <p>• Set up fraud alerts or credit freezes</p>
+                    <p>• Create strong, unique passwords</p>
+                    <p>• Be cautious about sharing personal information</p>
+                </div>
+            </section>
+            
+            <!-- Disclosure Report Section -->
+            <section id="disclosure-report" class="content-section">
+                <div class="content-left">
+                    <h1>Disclosure Report</h1>
+                    <p>A disclosure report, also known as a credit report, is a detailed summary of your credit history. It includes information about your credit accounts, payment history, public records, and inquiries into your credit.</p>
+                    
+                    <h2>What's Included</h2>
+                    <p>Your disclosure report includes information about your data with ChexMate. It also shows who has requested to view your credit information.</p>
+                    
+                    <h2>Requesting Your Report</h2>
+                    <p>You are entitled to one free disclosure report every 12 months.</p>
+                </div>
+                <div class="content-right">
+                    <h2>Quick Tips</h2>
+                    <p>• Review your report regularly</p>
+                    <p>• Dispute any errors you find</p>
+                    <p>• Understand how your report affects your credit score</p>
+                    <p>• Space out your free reports throughout the year</p>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2025 ChexMate. All rights reserved.</p>
+        </footer>
+    </div>
+    
+    <!-- Chat Widget -->
+    <div class="chat-widget" id="chatWidget">
+        <div class="chat-header" id="chatHeader">
+            <div>Chat Assistant</div>
+            <div class="control-buttons">
+                <button class="minimize-button" id="minimizeButton">−</button>
+            </div>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message assistant-message">
+                    Hello! I am your assistant to Chexmate Services. How can I help you today?
+                </div>
+            </div>
+            <div class="file-upload">
+                <input type="file" id="fileInput" multiple>
+                <button id="uploadButton">Upload</button>
+            </div>
+            <div class="chat-actions">
+                <button id="emailButton" class="action-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    Email Conversation
+                </button>
+            </div>          
+            <div class="chat-input">
+                <textarea id="userInput" placeholder="Type your message..."></textarea>
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tab Navigation
+            const tabLinks = document.querySelectorAll('.tab-menu li');
+            const contentSections = document.querySelectorAll('.content-section');
+            
+            tabLinks.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs and sections
+                    tabLinks.forEach(t => t.classList.remove('active'));
+                    contentSections.forEach(s => s.classList.remove('active'));
+                    
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Show corresponding content section
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(tabId).classList.add('active');
+                });
+            });
+            
+            // Chat Widget Functionality
+            const chatWidget = document.getElementById('chatWidget');
+            const chatHeader = document.getElementById('chatHeader');
+            const chatBody = document.getElementById('chatBody');
+            const minimizeButton = document.getElementById('minimizeButton');
+            const chatMessages = document.getElementById('chatMessages');
+            const userInput = document.getElementById('userInput');
+            const sendButton = document.getElementById('sendButton');
+            const fileInput = document.getElementById('fileInput');
+            const uploadButton = document.getElementById('uploadButton');
+            const emailButton = document.getElementById('emailButton');
+            
+            // Minimize/Maximize chat
+            minimizeButton.addEventListener('click', function() {
+                chatWidget.classList.toggle('minimized');
+                minimizeButton.textContent = chatWidget.classList.contains('minimized') ? '+' : '−';
+            });
+            
+            // Also toggle chat when clicking the header
+            chatHeader.addEventListener('click', function(e) {
+                if (e.target !== minimizeButton) {
+                    chatWidget.classList.toggle('minimized');
+                    minimizeButton.textContent = chatWidget.classList.contains('minimized') ? '+' : '−';
+                }
+            });
+            
+            // Send message function
+            sendButton.addEventListener('click', sendMessage);
+            
+            // Send message on Enter key
+            userInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Upload files
+            uploadButton.addEventListener('click', uploadFiles);
+
+            // uploadButton.addEventListener('click', function() {
+            //     const files = fileInput.files;
+            //     if (files.length > 0) {
+            //         const fileNames = Array.from(files).map(file => file.name).join(', ');
+            //         addMessage(`Uploading: ${fileNames}`, 'user');
+                    
+            //         // Simulate file upload (in a real app, this would call your backend)
+            //         setTimeout(() => {
+            //             addMessage(`I've received your documents. I will proceed further with the processing`, 'assistant');
+            //             fileInput.value = '';
+            //         }, 1500);
+            //     }
+            // });
+            
+            function sendMessage() {
+                const message = userInput.value.trim();
+                if (message) {
+                    addMessage(message, 'user');
+                    userInput.value = '';
+
+            //        if (previousMessageWasEmailRequest == True &&
+           //         if (message.toLowerCase().includes("send") && 
+           //             message.toLowerCase().includes("email") && 
+           //             !message.includes("@")) {
+                        
+                        // Ask for email address
+           //             setTimeout(() => {
+           //                 addMessage("I'd be happy to email this conversation to you. Please provide your email address.", "assistant");
+           //             }, 500);
+           //         }
+                    // Check if this is an email address response
+           //         else 
+                if (message.includes("@") && 
+                            previousMessageWasEmailRequest && 
+                            message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)) {
+                        
+                        // Send email
+                        sendChatByEmail(message);
+                        previousMessageWasEmailRequest = false;
+                    }
+                else { 
+
+                    // Show loading indicator
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.className = 'loading';
+                    loadingDiv.textContent = 'Getting response...';
+                    chatMessages.appendChild(loadingDiv);
+                    
+                    fetch('/get_response', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        // Remove loading indicator
+                        chatMessages.removeChild(loadingDiv);
+                        
+                        // Add assistant message to chat
+                        addMessage(data.response, 'assistant');
+                    })
+
+                    .catch(error => {
+                        // Remove loading indicator
+                        chatMessages.removeChild(loadingDiv);
+                        
+                        // Show error message
+                        addMessage('Sorry, there was an error processing your request.', 'assistant');
+                        console.error('Error:', error);
+                    });
+                    // Simulate response (in a real app, this would call your backend)
+                    // setTimeout(() => {
+                    //     let response;
+                    //     const messageLower = message.toLowerCase();
+                        
+                    //     if (messageLower.includes('security freeze') || messageLower.includes('freeze')) {
+                    //         response = "A security freeze restricts access to your credit report, making it harder for identity thieves to open accounts in your name. Would you like me to explain how to place a freeze?";
+                    //     } else if (messageLower.includes('identity theft')) {
+                    //         response = "Identity theft occurs when someone uses your personal information without permission. ChexMate offers tools to help protect and recover from identity theft. Would you like more information?";
+                    //     } else if (messageLower.includes('report') || messageLower.includes('disclosure')) {
+                    //         response = "Your disclosure report shows your credit history including accounts, payment history, and inquiries. You're entitled to one free report from each credit bureau annually. Would you like to know how to request yours?";
+                    //     } else {
+                    //         response = "I'd be happy to help you with any questions about security freezes, identity theft protection, or disclosure reports. What would you like to know more about?";
+                    //     }
+                        
+                    //     addMessage(response, 'assistant');
+                    // }, 1000);
+                }
+                if (latestAssistantMessage && 
+                    latestAssistantMessage.toLowerCase().includes("provide your email")) {
+                    previousMessageWasEmailRequest = true;
+                } else {
+                    previousMessageWasEmailRequest = false;
+                }
+            
+            }
+        }
+            let previousMessageWasEmailRequest = false;
+            let latestAssistantMessage = "";
+            
+            
+            function uploadFiles() {
+                const files = fileInput.files;
+                if (files.length === 0) return;
+                
+                const formData = new FormData();
+                for (let i = 0; i < files.length; i++) {
+                    formData.append('files', files[i]);
+                }
+                
+                // Show uploading message
+                addMessage(`Uploading ${files.length} file(s)...`, 'user');
+                
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Display uploaded files
+                    //    const fileName = data.files[0].name;
+                    //    const fileItem = document.createElement('span');
+                    //    fileItem.className = 'file-item';
+                    //    fileItem.textContent = file.name;
+                    //    uploadedFiles.appendChild(fileItem);
+                    
+                    
+                    // Add confirmation message
+                    addMessage(`Successfully uploaded the file.`, 'assistant');
+                })
+                .catch(error => {
+                    addMessage('Sorry, there was an error uploading your files.', 'assistant');
+                    console.error('Error:', error);
+                });
+                
+                // Clear file input
+                fileInput.value = '';
+            }
+            
+            function addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                
+                // Handle multiline messages
+                const formattedText = text.replace(/\n/g, '<br>');
+                messageDiv.innerHTML = formattedText;
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // If chat is minimized, maximize it when new message arrives
+                if (chatWidget.classList.contains('minimized') && sender === 'assistant') {
+                    chatWidget.classList.remove('minimized');
+                    minimizeButton.textContent = '−';
+                }
+                if (sender === 'assistant') {
+                    latestAssistantMessage = text;
+                }
+                   
+            }
+
+            emailButton.addEventListener('click', emailUser)
+            //addMessage("I'd like to email this conversation", "user");
+        
+            function emailUser() {
+                addMessage("I'd like to email this conversation", "user");
+                setTimeout(() => {
+                    addMessage("I'd be happy to email this conversation to you. Please provide your email address.", "assistant");
+                    previousMessageWasEmailRequest = true;
+                }, 500);
+            }
+            // Function to handle email sending from the chat widget
+            function sendChatByEmail(email) {
+                // Validate email (simple validation)
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    addMessage("Please provide a valid email address.", "assistant");
+                    return false;
+                }
+                
+                // Get conversation history from the chat
+                const conversationElements = document.querySelectorAll('.chat-messages .message');
+                const conversation = [];
+                
+                conversationElements.forEach(elem => {
+                    const isUser = elem.classList.contains('user-message');
+                    conversation.push({
+                        type: isUser ? 'user' : 'assistant',
+                        text: elem.innerHTML
+                    });
+                });
+                
+                // Prepare data for the server
+                const emailData = {
+                    email: email,
+                    conversation: conversation,
+                    subject: "Your ChexMate Chat Conversation",
+                    // You can add the user's name if you have it
+                    name: "Valued Customer"
+                    // Add any file attachments if needed
+                    // attachments: []
+                };
+                // Send email request to the server
+                fetch('/send-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(emailData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        addMessage("Great! I've sent the conversation to " + email + ". Please check your inbox.", "assistant");
+                    } else {
+                        addMessage("I'm sorry, there was a problem sending the email. Please try again later.", "assistant");
+                        console.error("Email error:", data.message);
+                    }
+                })
+                .catch(error => {
+                    addMessage("I'm sorry, there was a problem sending the email. Please try again later.", "assistant");
+                    console.error("Email sending error:", error);
+                });
+                
+                return true;
+            }
+
+
+        });
+        
+    </script>
+</body>
+</html>
