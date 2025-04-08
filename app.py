@@ -25,14 +25,19 @@ MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 # Flow state management
 FLOW_STATES = {
     'INITIAL': 0,
-    'FREEZE_REQUESTED': 1,
-    'SELF_OR_OTHER_ASKED': 2,
-    'AGE_VERIFICATION_ASKED': 3,
-    'PROTECTED_ASKED': 4,
-    'PIN_REQUESTED': 5,
-    'GOVTNBR_REQUESTED': 6, 
-    'COMPLETED': 7,
-    'BROKEN': -1
+    'REMOVE_INITIAL': 1,
+    'FREEZE_REQUESTED': 2,
+    'REMOVAL_REQUESTED': 3,
+    'SELF_OR_OTHER_ASKED': 4,
+    'AGE_VERIFICATION_ASKED': 5,
+    'PROTECTED_ASKED': 6,
+    'PIN_REQUESTED': 7,
+    'GOVTNBR_REQUESTED': 8, 
+    'REMOVAL_PIN_REQUESTED': 9,
+    'FREEZE_COMPLETED': 10,
+    'REMOVE_COMPLETED': 11,
+    'BROKEN': -1,
+    'REMOVE_BROKEN': -2
 }
 
 # Regular expressions for user responses
@@ -41,6 +46,9 @@ NO_PATTERN = re.compile(r'\b(no|nope|nah|n)\b', re.IGNORECASE)
 SELF_PATTERN = re.compile(r'\b(self|me|myself|my|i)\b', re.IGNORECASE)
 OTHER_PATTERN = re.compile(r'\b(other|someone|somebody|else|behalf|another)\b', re.IGNORECASE)
 QUERY_PATTERN = re.compile(r'\b(who|what|how|when|whose|which|where|whom)\b', re.IGNORECASE)
+WELCOME_PATTERN = re.compile(r'\b(hi|hello)\b', re.IGNORECASE)
+PLACE_PATTERN = re.compile(r'\b(place|add|placing|adding|raise|raising)\b', re.IGNORECASE)
+END_PATTERN = re.compile(r'\b(thanks|thank you|thank|thankyou)\b', re.IGNORECASE)
 QUESTION_PATTERN = r'?'
 PIN_PATTERN = r'^[A-Za-z0-9]+$'
 
@@ -145,7 +153,7 @@ def get_response():
     session_key = f"flow_state_{user_id}"
     details_key = f"freeze_details_{user_id}"
     
-    print(session[session_key])
+   # print(session[session_key])
     # Initialize session state if it doesn't exist
     if session_key not in session:
         session[session_key] = FLOW_STATES['INITIAL']
@@ -153,31 +161,53 @@ def get_response():
     
     current_state = session[session_key]
     freeze_details = session[details_key]
-                             
-    if current_state == FLOW_STATES['BROKEN']:
-        # Reset the flow state after broken flow message has been delivered
-        print('session reset')
-        session[session_key] = FLOW_STATES['INITIAL']
-
-    current_state = session[session_key]
-    freeze_details = session[details_key]
+    add_final_state = FLOW_STATES['INITIAL']
+    remove_final_state = FLOW_STATES['INITIAL']
 
     # Check if the message contains freeze request trigger
-    if 'place a freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL']:
+    if WELCOME_PATTERN.search(user_message) and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL']:
+        # Transition to freeze requested state
+           session[session_key] = FLOW_STATES['INITIAL']
+           return jsonify({
+               "response": " Welcome To ChexMate Services !!!"
+               " How can I help you today? ",
+               "flow_active": True
+            })
+    
+    # Check if the message contains freeze request trigger
+    # if END_PATTERN.search(user_message) and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['BROKEN']:
+    #     # Transition to freeze requested state
+    #        #session[session_key] = FLOW_STATES['SESSION_ENDED']
+    #        return jsonify({
+    #            "response": " Thank you for using the ChexMate Services !!!",
+    #            "flow_active": False
+    #         })
+
+    # Check if the message contains freeze request trigger
+    if PLACE_PATTERN.search(user_message) and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL'] and not add_final_state == FLOW_STATES['FREEZE_COMPLETED']:
         # Transition to freeze requested state
            session[session_key] = FLOW_STATES['FREEZE_REQUESTED']
            return jsonify({
-               "response": "Would you like to place a security freeze on your account? Please respond Yes or No.",
+               "response": "Would you like to place a security freeze on your data? Please confirm Yes or No.",
                "flow_active": True
             })
-        
-    if 'place a security freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL']:
+
+    if PLACE_PATTERN.search(user_message) and 'security' in user_message.lower() and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL'] and not add_final_state == FLOW_STATES['FREEZE_COMPLETED']:
         # Transition to freeze requested state
         session[session_key] = FLOW_STATES['FREEZE_REQUESTED']
         return jsonify({
-            "response": "Would you like to place a security freeze on your account? Please respond Yes or No.",
+            "response": "Would you like to place a security freeze on your data? Please confirm Yes or No.",
             "flow_active": True
         })
+    
+    if 'remove' in user_message.lower() and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL'] and not remove_final_state == FLOW_STATES['REMOVE_COMPLETED']:
+       # Transition to freeze requested state
+        session[session_key] = FLOW_STATES['REMOVAL_REQUESTED']
+        return jsonify({
+           "response": "Would you like to remove the security freeze on your data? Please confirm Yes or No.",
+            "flow_active": True
+        })
+
     # Handle the flow based on current state
     if current_state == FLOW_STATES['FREEZE_REQUESTED']:
         if YES_PATTERN.search(user_message):
@@ -193,6 +223,7 @@ def get_response():
                 "flow_active": False
             })
         else:
+            session[session_key] = FLOW_STATES['FREEZE_REQUESTED']
             return jsonify({
                 "response": "I didn't understand your response. Please respond Yes to place a freeze.",
                 "flow_active": True
@@ -209,12 +240,13 @@ def get_response():
         elif OTHER_PATTERN.search(user_message):
             freeze_details['request_type'] = 'other'
             session[details_key] = freeze_details
-            session[session_key] = FLOW_STATES['BROKEN']
+            session[session_key] = FLOW_STATES['INITIAL']
             return jsonify({
                 "response": "For freeze requests on behalf of someone else, please send a written mail with the details of your request.Is there anything else I can assist you with?",
-                "flow_active": False
+                "flow_active": True
             })
         else:
+            session[session_key] = FLOW_STATES['SELF_OR_OTHER_ASKED']
             return jsonify({
                 "response": "I didn't understand your response. Are you placing this security freeze request for yourself or on behalf of someone else? Please respond self or other.",
                 "flow_active": True
@@ -230,12 +262,13 @@ def get_response():
                 "flow_active": True
             })
         elif NO_PATTERN.search(user_message):
-            session[session_key] = FLOW_STATES['BROKEN']
+            session[session_key] = FLOW_STATES['INITIAL']
             return jsonify({
                 "response": "I'm sorry, but you must be 18 years or older to place a freeze request online. Please have a parent or guardian send a mail with the required documents. Is there anything else I can help you with?",
-                "flow_active": False
+                "flow_active": True
             })
         else:
+            session[session_key] = FLOW_STATES['AGE_VERIFICATION_ASKED']
             return jsonify({
                 "response": "I didn't understand your response. Are you 18 years of age or older? Please respond Yes or No.",
                 "flow_active": True
@@ -252,17 +285,39 @@ def get_response():
                 "flow_active": True
             })
         elif YES_PATTERN.search(user_message):
-            session[session_key] = FLOW_STATES['BROKEN']
+            session[session_key] = FLOW_STATES['INITIAL']
+            add_final_state = FLOW_STATES['INITIAL']
             return jsonify({
                 "response": "Protected consumer cannot place a freeze request online. Please send a mail with the relevant documents. Is there anything else I can help you with?",
-                "flow_active": False
+                "flow_active": True
             })
         else:
+            session[session_key] = FLOW_STATES['PROTECTED_ASKED']
             return jsonify({
                 "response": "I didn't understand your response. Are you a protected consumer? Please answer Yes or No",
                 "flow_active": True
             })
-    
+
+    if current_state == FLOW_STATES['REMOVAL_REQUESTED']:
+        if YES_PATTERN.search(user_message):
+            session[session_key] = FLOW_STATES['REMOVAL_PIN_REQUESTED']
+            return jsonify({
+                "response": "Please provide your Consumer Pin Number to remove the freeze.",
+                "flow_active": True
+            })
+        elif NO_PATTERN.search(user_message):
+            session[session_key] = FLOW_STATES['INITIAL']
+            return jsonify({
+                "response": "I understand you don't want to remove the freeze on your data. How else can I assist you today?",
+                "flow_active": True
+            })
+        else:
+            session[session_key] = FLOW_STATES['REMOVAL_REQUESTED']
+            return jsonify({
+                "response": "I didn't understand your response. Please respond Yes to remove a freeze.",
+                "flow_active": True
+            })
+
     elif current_state == FLOW_STATES['PIN_REQUESTED']:
         if re.match(PIN_PATTERN, user_message):
             freeze_details['pin_requested'] = True
@@ -274,6 +329,25 @@ def get_response():
                 "flow_active": True
             })
         else:
+            session[session_key] = FLOW_STATES['PIN_REQUESTED']
+            return jsonify({
+                "response": "Please provide a valid Consumer Pin Number. Please contact us at 1800-555-1234 if you need assistance to get the pin number.",
+                "flow_active": True
+            })
+
+    elif current_state == FLOW_STATES['REMOVAL_PIN_REQUESTED']:
+        if re.match(PIN_PATTERN, user_message):
+            freeze_details['remove_pin_requested'] = True
+            session[details_key] = freeze_details
+            print(freeze_details)
+            session[session_key] = FLOW_STATES['BROKEN']
+            remove_final_state = FLOW_STATES['REMOVE_COMPLETED']
+            return jsonify({
+                "response": "Thank you for providing your details. Your freeze request has been initiated successfully. You will receive a confirmation email shortly. Is there anything else I can help you with?",
+                "flow_active": True
+            })
+        else:
+            session[session_key] = FLOW_STATES['REMOVAL_PIN_REQUESTED']
             return jsonify({
                 "response": "Please provide a valid Consumer Pin Number. Please contact us at 1800-555-1234 if you need assistance to get the pin number.",
                 "flow_active": True
@@ -284,18 +358,20 @@ def get_response():
         if (user_message.isdigit()):
             freeze_details['provided_details'] = user_message
             session[details_key] = freeze_details
-            session[session_key] = FLOW_STATES['COMPLETED']
+            session[session_key] = FLOW_STATES['BROKEN']
+            add_final_state =  FLOW_STATES['FREEZE_COMPLETED']
         
         # Here you would typically process the freeze request
         # This could involve database updates, notifications, etc.
         
             return jsonify({
                 "response": "Thank you for providing your details. Your freeze request has been initiated successfully. You will receive a confirmation email shortly. Is there anything else I can help you with?",
-                "flow_active": False,
+                "flow_active": True,
                 "freeze_details": freeze_details  # You might want to process this on the backend
             })
     
         else:
+            session[session_key] = FLOW_STATES['GOVTNBR_REQUESTED']
             return jsonify({
                 "response": "Please provide a valid Government Number.",
                 "flow_active": True
@@ -305,14 +381,70 @@ def get_response():
     if current_state == FLOW_STATES['BROKEN']:
         # Reset the flow state after broken flow message has been delivered
         print('session reset')
-        session[session_key] = FLOW_STATES['INITIAL']
+
+        if END_PATTERN.search(user_message) and not QUERY_PATTERN.search(user_message):
+        # Transition to freeze requested state
+           session[session_key] = FLOW_STATES['INITIAL']
+           return jsonify({
+               "response": " Thank you for using the ChexMate Services !!!",
+               "flow_active": False
+            })
+
+        if 'remove' in user_message.lower() and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and remove_final_state == FLOW_STATES['REMOVE_COMPLETED']:
+        # Reset the flow state after broken flow message has been delivered
+            session[session_key] = FLOW_STATES['BROKEN']
+            return jsonify({
+                "response": "Your freeze request has already been removed. Is there anything else I can help you with?",
+                "flow_active": True
+            })
+        
+        if PLACE_PATTERN.search(user_message) and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and add_final_state == FLOW_STATES['FREEZE_COMPLETED']:
+        # Reset the flow state after broken flow message has been delivered
+            session[session_key] = FLOW_STATES['BROKEN']
+            return jsonify({
+                "response": "A freeze request has already been placed on your data. Is there anything else I can help you with?",
+                "flow_active": True
+            })
+
+        #session[session_key] = FLOW_STATES['INITIAL']
+        if YES_PATTERN.search(user_message):
+            session[session_key] = FLOW_STATES['INITIAL']
+            return jsonify({
+                "response": "How can I help you today?",
+                "flow_active": True
+            })
+        elif NO_PATTERN.search(user_message):
+            session[session_key] = FLOW_STATES['INITIAL']
+            return jsonify({
+                "response": " Thank you for using the ChexMate Services !!!",
+                "flow_active": False
+            })
+        else:
+            session[session_key] = FLOW_STATES['INITIAL']
+            return jsonify({
+                "response": " Welcome To ChexMate Services !!!"
+               " How can I help you today?",
+                "flow_active": True
+            })
 
     # For broken flow or if not in a flow state, process normally with Azure OpenAI
-    if 'place a freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message)  and current_state == FLOW_STATES['COMPLETED']:
+    if PLACE_PATTERN.search(user_message) and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message)  and current_state == FLOW_STATES['FREEZE_COMPLETED'] and add_final_state == FLOW_STATES['FREEZE_COMPLETED']:
         # Reset the flow state after broken flow message has been delivered
+        session[session_key] = FLOW_STATES['INITIAL']
+        add_final_state == FLOW_STATES['FREEZE_COMPLETED']
         return jsonify({
             "response": "A freeze request has already been placed on your data. Is there anything else I can help you with?",
-            "flow_active": False
+            "flow_active": True
+        })
+
+# For broken flow or if not in a flow state, process normally with Azure OpenAI
+    if 'remove' in user_message.lower() and 'freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message)  and current_state == FLOW_STATES['REMOVE_COMPLETED'] and remove_final_state == FLOW_STATES['REMOVE_COMPLETED']:
+        # Reset the flow state after broken flow message has been delivered
+        session[session_key] = FLOW_STATES['INITIAL']
+        remove_final_state == FLOW_STATES['REMOVE_COMPLETED']
+        return jsonify({
+            "response": "Your freeze request has already been removed. Is there anything else I can help you with?",
+            "flow_active": True
         })
 
    # print(user_message)
@@ -323,7 +455,7 @@ def get_response():
     gpt_resp=processquery.retrieve_resp(user_message)
     print(gpt_resp)
     # Simple echo response for demonstration
-    response_message = f"CheMate: {gpt_resp}"
+    response_message = f"ChexMate: {gpt_resp}"
     return jsonify({'response': response_message, "flow_active": False})
     
 # Route to clear/reset the freeze flow
