@@ -7,7 +7,11 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
-import Test
+import Chromatest
+#from processquery import query_chromadb
+from Chromatest import collection 
+import random
+    
 
 SMTP_SERVER = "testmail.fisdev.local"  # Change to your SMTP server
 SMTP_PORT = 25
@@ -17,7 +21,7 @@ SMTP_PASSWORD = "Welcome@8451(#sd"  # Replace with your password or app password
 #retriever=vectordb.as_retriever(search_kwargs={"k":2})
 
 app = Flask(__name__,static_folder='static',template_folder='templates')
-app.secret_key = os.environ.get('SECRET_KEY', 'ChexProdAgnt@01') 
+app.secret_key = os.environ.get('SECRET_KEY', 'ChexProdAgnt@02') 
 UPLOAD_FOLDER='uploads'
 ALLOWED_EXTENSIONS={'txt','pdf','doc','docx','csv','xlsx','ppt','pptx'}
 MAX_CONTENT_LENGTH = 16 * 1024 * 1024
@@ -342,8 +346,10 @@ def get_response():
             print(freeze_details)
             session[session_key] = FLOW_STATES['BROKEN']
             remove_final_state = FLOW_STATES['REMOVE_COMPLETED']
+            random_number = random.randint(999999,99999999)
+            response_message = f"Thank you for providing your details. Your freeze request has been removed successfully. Your Reference number is: {random_number}. You will receive a confirmation email shortly. Is there anything else I can help you with?"
             return jsonify({
-                "response": "Thank you for providing your details. Your freeze request has been initiated successfully. You will receive a confirmation email shortly. Is there anything else I can help you with?",
+                "response": response_message,
                 "flow_active": True
             })
         else:
@@ -363,9 +369,12 @@ def get_response():
         
         # Here you would typically process the freeze request
         # This could involve database updates, notifications, etc.
-        
+        # For this example, we'll just simulate a successful request
+            random_number = random.randint(999999,99999999)
+            response_message = f"Thank you for providing your details. Your freeze request has been initiated successfully. Your Reference number is: {random_number}. You will receive a confirmation email shortly. Is there anything else I can help you with?"
+         
             return jsonify({
-                "response": "Thank you for providing your details. Your freeze request has been initiated successfully. You will receive a confirmation email shortly. Is there anything else I can help you with?",
+                "response": response_message,
                 "flow_active": True,
                 "freeze_details": freeze_details  # You might want to process this on the backend
             })
@@ -451,13 +460,40 @@ def get_response():
     #vectors=Test.generate_embeddings(user_message_str)
     #retrieved_results=retriever.get_relevant_documents(user_message_str)
     #print(type(retrieved_results))
-    import processquery
-    gpt_resp=processquery.retrieve_resp(user_message)
-    print(gpt_resp)
-    # Simple echo response for demonstration
+    #query_embedding = generate_embeddings([user_message]) 
+    
+    doc_resp=query_chromadb(collection,user_message)
+    potential_responses = []
+    documents=doc_resp.get('documents',[])
+    for doc_list in documents:
+        for doc in doc_list:
+            #print(doc)
+            potential_responses.append(doc)
+    
+    print(potential_responses)
+    from processquery import retrieve_resp
+    gpt_resp=retrieve_resp(user_message,potential_responses)
+   # print(gpt_resp)
+
+   # print(len(potential_responses))  # Simple echo response for demonstration
     response_message = f"ChexMate: {gpt_resp}"
     return jsonify({'response': response_message, "flow_active": False})
     
+def query_chromadb(collection, query_text, n_results=3):
+    # Generate embedding for the query text
+    query_text = "What is a security freeze?"
+    from Chromatest import generate_embeddings_str # Ensure this function is defined in Test.py
+    query_embedding = generate_embeddings_str(query_text)  # Ensure this returns a list of embeddings
+      # Perform the query
+    print(query_text)
+    results = collection.query(
+        query_embeddings=query_embedding,
+        n_results=n_results,
+        include=["documents", "metadatas", "distances"]  # Include documents, metadata, and distances in the result
+    )
+    print(results)
+    return results
+
 # Route to clear/reset the freeze flow
 #@app.route('/reset_flow', methods=['POST'])
 def reset_flow():
