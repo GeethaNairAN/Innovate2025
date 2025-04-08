@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, send_from_directory
 import os
 import re
 import uuid
@@ -9,10 +9,10 @@ from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 import Test
 
-SMTP_SERVER = "smtp.gmail.com"  # Change to your SMTP server
-SMTP_PORT = 587
-SMTP_USERNAME = "gnairfis@gmail.com"  # Replace with your email
-SMTP_PASSWORD = "SidParu@01"  # Replace with your password or app password
+SMTP_SERVER = "testmail.fisdev.local"  # Change to your SMTP server
+SMTP_PORT = 25
+SMTP_USERNAME = "dsreporting@fisdev.local"  # Replace with your email
+SMTP_PASSWORD = "Welcome@8451(#sd"  # Replace with your password or app password
 
 #retriever=vectordb.as_retriever(search_kwargs={"k":2})
 
@@ -30,7 +30,8 @@ FLOW_STATES = {
     'AGE_VERIFICATION_ASKED': 3,
     'PROTECTED_ASKED': 4,
     'PIN_REQUESTED': 5,
-    'COMPLETED': 6,
+    'GOVTNBR_REQUESTED': 6, 
+    'COMPLETED': 7,
     'BROKEN': -1
 }
 
@@ -39,6 +40,9 @@ YES_PATTERN = re.compile(r'\b(yes|yep|yeah|sure|ok|okay|confirm|y)\b', re.IGNORE
 NO_PATTERN = re.compile(r'\b(no|nope|nah|n)\b', re.IGNORECASE)
 SELF_PATTERN = re.compile(r'\b(self|me|myself|my|i)\b', re.IGNORECASE)
 OTHER_PATTERN = re.compile(r'\b(other|someone|somebody|else|behalf|another)\b', re.IGNORECASE)
+QUERY_PATTERN = re.compile(r'\b(who|what|how|when|whose|which|where|whom)\b', re.IGNORECASE)
+QUESTION_PATTERN = r'?'
+PIN_PATTERN = r'^[A-Za-z0-9]+$'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
@@ -129,6 +133,7 @@ def send_email(recipient_email, subject, message_content, attachments=None):
 
 @app.route('/')
 def home():
+    reset_flow()
     return render_template('test.html')
 
 @app.route('/get_response', methods=['POST'])
@@ -139,30 +144,38 @@ def get_response():
     # Use user_id as a key for session management
     session_key = f"flow_state_{user_id}"
     details_key = f"freeze_details_{user_id}"
-
-    print(FLOW_STATES)
+    
+    print(session[session_key])
     # Initialize session state if it doesn't exist
     if session_key not in session:
         session[session_key] = FLOW_STATES['INITIAL']
         session[details_key] = {}
+    
+    current_state = session[session_key]
+    freeze_details = session[details_key]
+                             
+    if current_state == FLOW_STATES['BROKEN']:
+        # Reset the flow state after broken flow message has been delivered
+        print('session reset')
+        session[session_key] = FLOW_STATES['INITIAL']
 
     current_state = session[session_key]
     freeze_details = session[details_key]
 
     # Check if the message contains freeze request trigger
-    if 'want to place a freeze' in user_message.lower() and current_state == FLOW_STATES['INITIAL']:
+    if 'place a freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL']:
         # Transition to freeze requested state
            session[session_key] = FLOW_STATES['FREEZE_REQUESTED']
            return jsonify({
-               "response": "Would you like to place a security freeze on your account? Please respond with Yes or No.",
+               "response": "Would you like to place a security freeze on your account? Please respond Yes or No.",
                "flow_active": True
             })
         
-    if 'please place a freeze' in user_message.lower() and current_state == FLOW_STATES['INITIAL']:
+    if 'place a security freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message) and current_state == FLOW_STATES['INITIAL']:
         # Transition to freeze requested state
         session[session_key] = FLOW_STATES['FREEZE_REQUESTED']
         return jsonify({
-            "response": "Would you like to place a security freeze on your account? Please respond with Yes or No.",
+            "response": "Would you like to place a security freeze on your account? Please respond Yes or No.",
             "flow_active": True
         })
     # Handle the flow based on current state
@@ -170,7 +183,7 @@ def get_response():
         if YES_PATTERN.search(user_message):
             session[session_key] = FLOW_STATES['SELF_OR_OTHER_ASKED']
             return jsonify({
-                "response": "Are you placing this security freeze request for yourself or on behalf of someone else? Please respond self or other.",
+                "response": "Are you placing the security freeze request for yourself or on behalf of someone else? Please respond self or other.",
                 "flow_active": True
             })
         elif NO_PATTERN.search(user_message):
@@ -181,7 +194,7 @@ def get_response():
             })
         else:
             return jsonify({
-                "response": "I didn't understand your response. Please respond with Yes or No if you want to place a freeze.",
+                "response": "I didn't understand your response. Please respond Yes to place a freeze.",
                 "flow_active": True
             })
     elif current_state == FLOW_STATES['SELF_OR_OTHER_ASKED']:
@@ -190,7 +203,7 @@ def get_response():
             session[details_key] = freeze_details
             session[session_key] = FLOW_STATES['AGE_VERIFICATION_ASKED']
             return jsonify({
-                "response": "Are you 18 years of age or older? Please respond with Yes or No.",
+                "response": "Are you 18 years of age or older? Please respond Yes or No.",
                 "flow_active": True
             })
         elif OTHER_PATTERN.search(user_message):
@@ -198,7 +211,7 @@ def get_response():
             session[details_key] = freeze_details
             session[session_key] = FLOW_STATES['BROKEN']
             return jsonify({
-                "response": "For freeze requests on behalf of someone else, please send a written mail with the details of your request.",
+                "response": "For freeze requests on behalf of someone else, please send a written mail with the details of your request.Is there anything else I can assist you with?",
                 "flow_active": False
             })
         else:
@@ -207,7 +220,7 @@ def get_response():
                 "flow_active": True
             })
     
-    elif current_state == FLOW_STATES['AGE_VERIFICATION_ASKED']:
+    elif current_state == FLOW_STATES['AGE_VERIFICATION_ASKED']:    
         if YES_PATTERN.search(user_message):
             freeze_details['age_verified'] = True
             session[details_key] = freeze_details
@@ -219,28 +232,29 @@ def get_response():
         elif NO_PATTERN.search(user_message):
             session[session_key] = FLOW_STATES['BROKEN']
             return jsonify({
-                "response": "I'm sorry, but you must be 18 years or older to place a freeze request online. Please have a parent or guardian send a mail with the relevant documents.",
+                "response": "I'm sorry, but you must be 18 years or older to place a freeze request online. Please have a parent or guardian send a mail with the required documents. Is there anything else I can help you with?",
                 "flow_active": False
             })
         else:
             return jsonify({
-                "response": "I didn't understand your response. Are you 18 years of age or older? Please respond with Yes or No.",
+                "response": "I didn't understand your response. Are you 18 years of age or older? Please respond Yes or No.",
                 "flow_active": True
             })
     
     elif current_state == FLOW_STATES['PROTECTED_ASKED']:
         if NO_PATTERN.search(user_message):
-            freeze_details['protected_consumer'] = True
+            freeze_details['protected_asked'] = True
             session[details_key] = freeze_details
+            print(freeze_details)
             session[session_key] = FLOW_STATES['PIN_REQUESTED']
             return jsonify({
-                "response": "Please provide your Consumer Pin Number. Please contact us if you have misplaced the pin number or need help with getting the pin number",
+                "response": "Please provide your Consumer Pin Number. Please contact us at 1800-555-1234 if you have misplaced the pin number or need help with getting the pin number",
                 "flow_active": True
             })
         elif YES_PATTERN.search(user_message):
             session[session_key] = FLOW_STATES['BROKEN']
             return jsonify({
-                "response": "Protected consumer cannot place a freeze request online. Please send a mail with the relevant documents.",
+                "response": "Protected consumer cannot place a freeze request online. Please send a mail with the relevant documents. Is there anything else I can help you with?",
                 "flow_active": False
             })
         else:
@@ -250,26 +264,51 @@ def get_response():
             })
     
     elif current_state == FLOW_STATES['PIN_REQUESTED']:
+        if re.match(PIN_PATTERN, user_message):
+            freeze_details['pin_requested'] = True
+            session[details_key] = freeze_details
+            print(freeze_details)
+            session[session_key] = FLOW_STATES['GOVTNBR_REQUESTED']
+            return jsonify({
+                "response": "Please provide your Government Number.",
+                "flow_active": True
+            })
+        else:
+            return jsonify({
+                "response": "Please provide a valid Consumer Pin Number. Please contact us at 1800-555-1234 if you need assistance to get the pin number.",
+                "flow_active": True
+            })
+        
+    elif current_state == FLOW_STATES['GOVTNBR_REQUESTED']:
         # Save the provided details
-        freeze_details['provided_details'] = user_message
-        session[details_key] = freeze_details
-        session[session_key] = FLOW_STATES['COMPLETED']
+        if (user_message.isdigit()):
+            freeze_details['provided_details'] = user_message
+            session[details_key] = freeze_details
+            session[session_key] = FLOW_STATES['COMPLETED']
         
         # Here you would typically process the freeze request
         # This could involve database updates, notifications, etc.
         
-        return jsonify({
-            "response": "Thank you for providing your details. Your freeze request has been submitted successfully. You will receive a confirmation email shortly. Is there anything else I can help you with?",
-            "flow_active": False,
-            "freeze_details": freeze_details  # You might want to process this on the backend
-        })
+            return jsonify({
+                "response": "Thank you for providing your details. Your freeze request has been initiated successfully. You will receive a confirmation email shortly. Is there anything else I can help you with?",
+                "flow_active": False,
+                "freeze_details": freeze_details  # You might want to process this on the backend
+            })
     
-    if current_state == FLOW_STATES['COMPLETED']:
+        else:
+            return jsonify({
+                "response": "Please provide a valid Government Number.",
+                "flow_active": True
+            })
+        
+
+    if current_state == FLOW_STATES['BROKEN']:
         # Reset the flow state after broken flow message has been delivered
+        print('session reset')
         session[session_key] = FLOW_STATES['INITIAL']
 
     # For broken flow or if not in a flow state, process normally with Azure OpenAI
-    if 'want to place a freeze' in user_message.lower() and current_state == FLOW_STATES['COMPLETED']:
+    if 'place a freeze' in user_message.lower() and not QUERY_PATTERN.search(user_message)  and current_state == FLOW_STATES['COMPLETED']:
         # Reset the flow state after broken flow message has been delivered
         return jsonify({
             "response": "A freeze request has already been placed on your data. Is there anything else I can help you with?",
@@ -288,14 +327,15 @@ def get_response():
     return jsonify({'response': response_message, "flow_active": False})
     
 # Route to clear/reset the freeze flow
-@app.route('/reset_flow', methods=['POST'])
+#@app.route('/reset_flow', methods=['POST'])
 def reset_flow():
-    data = request.json
-    user_id = data.get('user_id', 'default_user')
+    user_id = 'default_user'
     
     session_key = f"flow_state_{user_id}"
     details_key = f"freeze_details_{user_id}"
-    
+    print(session_key)
+    print(session)
+
     if session_key in session:
         session[session_key] = FLOW_STATES['INITIAL']
         session[details_key] = {}
@@ -317,6 +357,8 @@ def upload_files():
         if file.filename=='':
             continue
 
+        print(allowed_file(file.filename))
+
         if file and allowed_file(file.filename):
             filename=secure_filename(file.filename)
             file_path=os.path.join(app.config['UPLOAD_FOLDER'], f"{session_id}_{filename}")
@@ -333,14 +375,21 @@ def upload_files():
             })
 
             upload_files.append({"name": filename})
+            #response = jsonify({"files": upload_files})
+            response = jsonify("success")
         else:
-            return jsonify({"error": "Invalid File Format. Please upload as text, document or spreadsheet"})
-        
-    response = jsonify({"files": upload_files})
+            print("error in file format")
+            #response = jsonify({"error": "Invalid File Format. Please upload as text, document or spreadsheet"})
+            response = jsonify("faile")
+            
     print(response)
     print(upload_files)
     response.set_cookie('session_id', session_id)
     return response
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
 
 @app.route('/send-email', methods=['POST'])
 def email_chat():
